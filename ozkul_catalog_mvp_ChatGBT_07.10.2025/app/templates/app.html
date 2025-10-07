@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>{{ title }}</title>
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;max-width:1100px;margin:20px auto}
+    .row{display:flex;gap:8px;align-items:center}
+    table{border-collapse:collapse;width:100%;margin-top:12px}
+    th,td{border:1px solid #ddd;padding:6px;font-size:14px}
+    th{background:#f5f5f5}
+    .toolbar{display:flex;gap:10px;align-items:center;margin:10px 0}
+  </style>
+</head>
+<body>
+  <h3>Ürünler</h3>
+  <div class="toolbar">
+    <input id="q" placeholder="Ara (SKU/Ad)"/>
+    <button onclick="load()">Ara</button>
+    <form id="imp" enctype="multipart/form-data" style="display:inline">
+      <input type="file" name="file" accept=".xlsx"/>
+      <button type="submit">Excel içe aktar</button>
+    </form>
+    <a href="/api/export/excel" target="_blank">Excel dışa aktar</a>
+  </div>
+
+  <table id="tbl">
+    <thead><tr><th>Görsel</th><th>SKU</th><th>Ad</th><th>Fiyat</th><th>Açıklama</th><th>Sil</th></tr></thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>PDF Katalog</h3>
+  <div class="row">
+    <label>Tasarım:
+      <select id="design">
+        <option value="classic">Klasik (2 kolon)</option>
+        <option value="modern">Modern (3 kolon)</option>
+        <option value="minimal">Minimal (1 kolon)</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="logo" checked/> Logo</label>
+    <label><input type="checkbox" id="company" checked/> Şirket adı</label>
+    <button onclick="pdf()">PDF Oluştur</button>
+  </div>
+
+<script>
+async function load(){
+  const q = document.getElementById('q').value;
+  const res = await fetch('/api/products?q=' + encodeURIComponent(q));
+  if(!res.ok){ alert('Giriş süren dolmuş olabilir. Sayfayı yenileyin.'); return; }
+  const data = await res.json();
+  const tbody = document.querySelector('#tbl tbody');
+  tbody.innerHTML = '';
+  for(const p of data){
+    const tr = document.createElement('tr');
+    const img = p.images[0]?.path ? `<img src="${p.images[0].path}" style="height:50px"/>` : '';
+    tr.innerHTML = `<td>${img}</td><td>${p.sku}</td><td>${p.name}</td><td>${p.price ?? ''}</td><td>${p.description ?? ''}</td>
+                    <td><button onclick="delp('${p.id}')">Sil</button></td>`;
+    tbody.appendChild(tr);
+  }
+}
+async function delp(id){
+  if(!confirm('Silinsin mi?')) return;
+  const res = await fetch('/api/products/'+id, {method:'DELETE'});
+  if(res.ok) load(); else alert('Silinemedi');
+}
+document.getElementById('imp').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const res = await fetch('/api/import/excel', {method:'POST', body: fd});
+  const data = await res.json();
+  alert('İçe aktarılan toplam: '+data.total);
+  load();
+});
+async function pdf(){
+  const fd = new FormData();
+  fd.append('design', document.getElementById('design').value);
+  fd.append('show_logo', document.getElementById('logo').checked);
+  fd.append('show_company', document.getElementById('company').checked);
+  const res = await fetch('/api/catalog/pdf', {method:'POST', body: fd});
+  if(res.ok){
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'catalog.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  }else{
+    alert('PDF oluşturulamadı');
+  }
+}
+load();
+</script>
+</body>
+</html>
