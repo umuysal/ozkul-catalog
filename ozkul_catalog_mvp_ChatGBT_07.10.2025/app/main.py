@@ -1,4 +1,7 @@
 import os
+from pathlib import Path
+UPLOAD_DIR = (Path(__file__).resolve().parent.parent / "uploads")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
@@ -19,7 +22,7 @@ COMPANY_NAME = os.getenv("COMPANY_NAME", "ÖZKUL ELEKTRONİK")
 
 app = FastAPI(title=APP_TITLE)
 Base.metadata.create_all(bind=engine)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 templates = Environment(loader=FileSystemLoader("app/templates"))
 
 def get_db():
